@@ -20,6 +20,12 @@ class VoiceActivityDetector(Protocol):
     def record_turn(self) -> np.ndarray | None: ...
 
 
+class ActivationProvider(Protocol):
+    """Blocks until microphone capture may begin."""
+
+    def wait_for_activation(self) -> None: ...
+
+
 class ConversationModel(Protocol):
     def reply(self, messages: list[Message]) -> str: ...
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 
-from adapters import FasterWhisperRecognizer, OllamaModel, PiperSynthesizer, SileroTurnDetector
+from adapters import ImmediateActivation, FasterWhisperRecognizer, OllamaModel, PiperSynthesizer, SileroTurnDetector
 from components import SpeechTextNormalizer, VoiceConversation
 
 
@@ -21,7 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = build_parser().parse_args()
     conversation = VoiceConversation(
-        SileroTurnDetector(), FasterWhisperRecognizer(args.whisper_model),
+        ImmediateActivation(), SileroTurnDetector(), FasterWhisperRecognizer(args.whisper_model),
         OllamaModel(args.ollama_model, args.ollama_host),
         PiperSynthesizer(args.piper, args.voice),
         SpeechTextNormalizer(), args.language,
