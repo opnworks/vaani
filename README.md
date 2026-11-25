@@ -201,6 +201,11 @@ can control when recording begins. Silero ends recording after speech followed b
 silence; before speech begins, recording continues until speech is detected or
 the application is interrupted.
 
+Say **"clear conversation"** to clear the current session's conversation context.
+Vaani confirms "Conversation cleared. Starting fresh." and keeps running with
+the default system instruction. Earlier turns no longer influence subsequent
+requests. This command only clears in-memory conversation context.
+
 ### A sample response
 
 Asked to introduce itself in verse, a local Llama 3.2 model running entirely on

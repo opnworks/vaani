@@ -1,4 +1,5 @@
 from threading import Event, Thread
+from unittest.mock import Mock
 
 import numpy as np
 import pytest
@@ -202,3 +203,70 @@ def test_supplied_audio_bypasses_activation_and_microphone_capture():
 
     assert activation.activations == 0
     assert detector.recordings == 0
+
+
+def test_clear_context_restores_default_system_instruction():
+    conversation = make_conversation()
+    initial_messages = conversation.messages
+    conversation.process_turn()
+
+    conversation.clear_context()
+
+    assert conversation.messages == initial_messages
+    assert conversation.messages == (
+        Message("system", "You are Vaani, a friendly local voice assistant."),
+    )
+    conversation.clear_context()
+    assert conversation.messages == initial_messages
+
+
+@pytest.mark.parametrize("command", ["clear conversation", " Clear Conversation. ", "CLEAR CONVERSATION!", "clear conversation?"])
+def test_clear_command_excludes_previous_turns_from_subsequent_requests(command):
+    recognizer = Mock()
+    recognizer.transcribe.side_effect = ["My name is Alex", command, command, "What is my name?"]
+    requests = []
+
+    def reply(messages):
+        requests.append(tuple(messages))
+        return "A reply"
+
+    model = Mock()
+    model.reply.side_effect = reply
+    detector = FakeDetector()
+    activation = FakeActivation()
+    speaker = FakeSynthesizer()
+    conversation = make_conversation(
+        recognizer=recognizer, model=model, detector=detector, activation=activation, synthesizer=speaker,
+    )
+    initial_messages = conversation.messages
+    conversation.process_turn()
+
+    for _ in range(2):
+        assert conversation.process_turn() == "Conversation cleared. Starting fresh."
+        assert conversation.messages == initial_messages
+        assert model.reply.call_count == 1
+
+    conversation.process_turn()
+
+    assert requests == [
+        (*initial_messages, Message("user", "My name is Alex")),
+        (*initial_messages, Message("user", "What is my name?")),
+    ]
+    assert speaker.spoken == [
+        "A reply", "Conversation cleared. Starting fresh.", "Conversation cleared. Starting fresh.", "A reply",
+    ]
+    assert detector.recordings == activation.activations == recognizer.transcribe.call_count == 4
+
+
+def test_clear_command_mentioned_in_a_question_is_an_ordinary_turn():
+    question = "Explain how to clear conversation history."
+    recognizer = Mock()
+    recognizer.transcribe.return_value = question
+    model = Mock()
+    model.reply.return_value = "An explanation"
+    conversation = make_conversation(recognizer=recognizer, model=model)
+
+    assert conversation.process_turn() == "An explanation"
+
+    model.reply.assert_called_once()
+    assert conversation.messages[-2:] == (Message("user", question), Message("assistant", "An explanation"))
