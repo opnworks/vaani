@@ -5,6 +5,9 @@ import numpy as np
 from components.speech_text_normalizer import SpeechTextNormalizer
 from ports import ActivationProvider, ConversationModel, Message, SpeechRecognizer, SpeechSynthesizer, VoiceActivityDetector
 
+DEFAULT_SYSTEM_INSTRUCTION = "You are Vaani, a friendly local voice assistant."
+
+
 class VoiceConversation:
     """Drives one turn of listen -> transcribe -> reply -> speak."""
 
@@ -19,7 +22,11 @@ class VoiceConversation:
         self._synthesizer = synthesizer
         self._language = language
         self._speech_text_normalizer = speech_text_normalizer
-        self._messages = [Message("system", "You are Vaani, a friendly local voice assistant.")]
+        self._messages = [Message("system", DEFAULT_SYSTEM_INSTRUCTION)]
+
+
+    def clear_context(self) -> None:
+        self._messages = [Message("system", DEFAULT_SYSTEM_INSTRUCTION)]
 
     @property
     def messages(self) -> tuple[Message, ...]:
@@ -38,6 +45,12 @@ class VoiceConversation:
         text = self._recognizer.transcribe(audio, self._language)
         if not text:
             return None
+        if text.strip().casefold().rstrip(".!?").strip() == "clear conversation":
+            self.clear_context()
+            confirmation = "Conversation cleared. Starting fresh."
+            self._synthesizer.speak(confirmation)
+            return confirmation
+
         self._messages.append(Message("user", text))
         response = self._model.reply(self._messages)
         normalized_response = self._speech_text_normalizer.normalize(response)
